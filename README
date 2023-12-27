@@ -1,3 +1,35 @@
+
+
+
+```
+git clone https://github.com/bitnet-io/bfgminer-bitnet
+cd bfgminer-bitnet
+sh autogen.sh
+
+then grab this file and unzip........
+https://github.com/bitnet-io/bfgminer-bitnet/releases/tag/opencl
+tar -xvf https://github.com/ghostlander/AMD-APP-SDK/releases/download/v2.9.1/AMD-APP-SDK-v2.9.1-lnx64.tar.xz
+
+cp -rf AMD-APP-SDK-v2.9.1-lnx64/lib/x86_64/* /usr/lib/
+cp -rf AMD-APP-SDK-v2.9.1-lnx64/include/CL /usr/include/
+ldconfig
+
+apt-get install  git libcurl4-openssl-dev pkg-config libjansson-dev yasm libncurses5-dev libtool automake autoconf libncurses5 -y
+
+sh autogen.sh
+ ./configure --prefix=$PWD/bfgminer-binaries --enable-opencl  --enable-cpumining
+
+make -j4    # for 4 cores use 16 cores or 24 cores for faster builds when you have more threads
+
+make -j4 install
+
+binaries will be in bfgminer-binaries/bin
+
+./bfgminer
+```
+
+
+
 BFGMiner:
 St. Barbara's Faithfully Glorified Mining Initiative Naturally Exceeding Rivals
 or Basically a Freaking Good Miner
