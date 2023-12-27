@@ -208,11 +208,17 @@ if USE_SCRYPT
 bfgminer_SOURCES += malgo/scrypt.c malgo/scrypt.h
 dist_doc_DATA += README.scrypt
 
+if USE_AURUM
+bfgminer_SOURCES += malgo/aurum.c malgo/aurum.h
+dist_doc_DATA += README.aurum
+
 if USE_OPENCL
 dist_kernels_DATA += \
 	$(top_srcdir)/opencl/psw.cl  \
 	$(top_srcdir)/opencl/scrypt.cl  \
+	$(top_srcdir)/opencl/aurum.cl  \
 	$(top_srcdir)/opencl/zuikkis.cl
+endif
 endif
 endif
 

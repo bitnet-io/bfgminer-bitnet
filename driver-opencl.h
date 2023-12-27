@@ -59,6 +59,11 @@ struct opencl_device_data {
 	size_t thread_concurrency;
 	size_t shaders;
 #endif
+#ifdef USE_AURUM
+	int lookup_gap;
+	size_t thread_concurrency;
+	size_t shaders;
+#endif
 	struct timeval tv_gpustart;
 	int intervals;
 	
@@ -128,6 +133,11 @@ extern const char *set_intensity(char *arg);
 extern const char *set_vector(char *arg);
 extern const char *set_worksize(char *arg);
 #ifdef USE_SCRYPT
+extern const char *set_shaders(char *arg);
+extern const char *set_lookup_gap(char *arg);
+extern const char *set_thread_concurrency(char *arg);
+#endif
+#ifdef USE_AURUM
 extern const char *set_shaders(char *arg);
 extern const char *set_lookup_gap(char *arg);
 extern const char *set_thread_concurrency(char *arg);

@@ -290,6 +290,9 @@ enum pow_algorithm {
 #ifdef USE_SCRYPT
 	POW_SCRYPT,
 #endif
+#ifdef USE_AURUM
+	POW_AURUM,
+#endif
 	POW_ALGORITHM_COUNT,
 };
 
@@ -394,6 +397,9 @@ enum cl_kernels {
 #endif
 #ifdef USE_SCRYPT
 	KL_SCRYPT,
+#endif
+#ifdef USE_AURUM
+	KL_AURUM,
 #endif
 	OPENCL_KERNEL_INTERFACE_COUNT,
 };

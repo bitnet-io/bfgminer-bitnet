@@ -9,9 +9,12 @@
 #include "miner.h"
 
 #define SCRYPT_CLBUFFER0_SZ      (128)
+#define AURUM_CLBUFFER0_SZ      (128)
 #define FULLHEADER_CLBUFFER0_SZ  ( 80)
 #ifdef USE_SCRYPT
 #	define MAX_CLBUFFER0_SZ  SCRYPT_CLBUFFER0_SZ
+#elif USE_AURUM
+#	define MAX_CLBUFFER0_SZ  AURUM_CLBUFFER0_SZ
 #elif USE_OPENCL_FULLHEADER
 #	define MAX_CLBUFFER0_SZ  FULLHEADER_CLBUFFER0_SZ
 #endif
@@ -33,6 +36,11 @@ struct _clState {
 	cl_mem CLbuffer0;
 #endif
 #ifdef USE_SCRYPT
+	cl_mem padbuffer8;
+	size_t padbufsize;
+	void * cldata;
+#endif
+#ifdef USE_AURUM
 	cl_mem padbuffer8;
 	size_t padbufsize;
 	void * cldata;

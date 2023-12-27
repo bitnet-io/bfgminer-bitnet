@@ -99,6 +99,9 @@
 #ifdef USE_SCRYPT
 #include "malgo/scrypt.h"
 #endif
+#ifdef USE_AURUM
+#include "malgo/aurum.h"
+#endif
 
 #if defined(USE_AVALON) || defined(USE_BITFORCE) || defined(USE_ICARUS) || defined(USE_MODMINER) || defined(USE_NANOFURY) || defined(USE_X6500) || defined(USE_ZTEX)
 #	define USE_FPGA
@@ -172,6 +175,11 @@ int nDevs;
 int opt_g_threads = -1;
 #endif
 #ifdef USE_SCRYPT
+static char detect_algo = 1;
+#else
+static char detect_algo;
+#endif
+#ifdef USE_AURUM
 static char detect_algo = 1;
 #else
 static char detect_algo;
@@ -1038,6 +1046,16 @@ static
 const char *set_malgo_scrypt()
 {
 	goal_set_malgo(get_mining_goal("default"), &malgo_scrypt);
+	return NULL;
+}
+#endif
+#ifdef USE_AURUM
+extern struct mining_algorithm malgo_aurum;
+
+static
+const char *set_malgo_aurum()
+{
+	goal_set_malgo(get_mining_goal("default"), &malgo_aurum);
 	return NULL;
 }
 #endif
@@ -2483,6 +2501,11 @@ static struct opt_table opt_config_table[] = {
 		     set_lookup_gap, NULL, NULL,
 	             opt_hidden),
 #endif
+#ifdef USE_AURUM
+	OPT_WITH_ARG("--lookup-gap",
+		     set_lookup_gap, NULL, NULL,
+	             opt_hidden),
+#endif
 	OPT_WITH_ARG("--intensity|-I",
 	             set_intensity, NULL, NULL,
 	             opt_hidden),
@@ -2699,6 +2722,11 @@ static struct opt_table opt_config_table[] = {
 	                set_malgo_scrypt, NULL,
 			"Use the scrypt algorithm for mining (non-bitcoin)"),
 #endif
+#ifdef USE_AURUM
+	OPT_WITHOUT_ARG("--aurum",
+	                set_malgo_aurum, NULL,
+			"Use the aurum algorithm for mining (Bitnet IO only)"),
+#endif
 	OPT_WITH_ARG("--set-device|--set",
 			opt_string_elist_add, NULL, &opt_set_device_list,
 			"Set default parameters on devices; eg"
@@ -2708,6 +2736,11 @@ static struct opt_table opt_config_table[] = {
 	),
 
 #if defined(USE_SCRYPT) && defined(USE_OPENCL)
+	OPT_WITH_ARG("--shaders",
+		     set_shaders, NULL, NULL,
+	             opt_hidden),
+#endif
+#if defined(USE_AURUM) && defined(USE_OPENCL)
 	OPT_WITH_ARG("--shaders",
 		     set_shaders, NULL, NULL,
 	             opt_hidden),
@@ -2774,6 +2807,11 @@ static struct opt_table opt_config_table[] = {
 #endif
 	),
 #if defined(USE_SCRYPT) && defined(USE_OPENCL)
+	OPT_WITH_ARG("--thread-concurrency",
+		     set_thread_concurrency, NULL, NULL,
+	             opt_hidden),
+#endif
+#if defined(USE_AURUM) && defined(USE_OPENCL)
 	OPT_WITH_ARG("--thread-concurrency",
 		     set_thread_concurrency, NULL, NULL,
 	             opt_hidden),
@@ -3487,6 +3525,8 @@ static bool work_decode(struct pool *pool, struct work *work, json_t *val)
 		json_t *tmp = json_object_get(res_val, "algorithm");
 		const char *v = tmp ? json_string_value(tmp) : "";
 		if (strncasecmp(v, "scrypt", 6))
+			detect_algo = 2;
+		if (strncasecmp(v, "aurum", 6))
 			detect_algo = 2;
 	}
 	
@@ -13483,6 +13523,9 @@ int main(int argc, char *argv[])
 #ifdef USE_SCRYPT
 		test_scrypt();
 #endif
+//#ifdef USE_AURUM
+//		test_hash();
+//#endif
 		test_target();
 		test_uri_get_param();
 		utf8_test();
@@ -13706,6 +13749,12 @@ int main(int argc, char *argv[])
 	if (detect_algo == 1 && get_mining_goal("default")->malgo->algo != POW_SCRYPT) {
 		applog(LOG_NOTICE, "Detected scrypt algorithm");
 		set_malgo_scrypt();
+	}
+#endif
+#ifdef USE_AURUM
+	if (detect_algo == 1 && get_mining_goal("default")->malgo->algo != POW_AURUM) {
+		applog(LOG_NOTICE, "Detected aurum algorithm");
+		set_malgo_aurum();
 	}
 #endif
 	detect_algo = 0;

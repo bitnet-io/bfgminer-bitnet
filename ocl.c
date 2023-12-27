@@ -828,6 +828,16 @@ bool opencl_build_kernel(struct cgpu_info * const cgpu, _clState * const clState
 		sprintf(CompilerOptions, "-D WORKSIZE=%d -D VECTORS%d -D WORKVEC=%d",
 			(int)kernelinfo->wsize, clState->vwidth, (int)kernelinfo->wsize * clState->vwidth);
 	}
+#ifdef USE_AURUM
+	if (kernelinfo->interface == KL_AURUM)
+		sprintf(CompilerOptions, "-D LOOKUP_GAP=%d -D CONCURRENT_THREADS=%d -D WORKSIZE=%d",
+			data->lookup_gap, (unsigned int)data->thread_concurrency, (int)kernelinfo->wsize);
+	else
+#endif
+	{
+		sprintf(CompilerOptions, "-D WORKSIZE=%d -D VECTORS%d -D WORKVEC=%d",
+			(int)kernelinfo->wsize, clState->vwidth, (int)kernelinfo->wsize * clState->vwidth);
+	}
 	applog(LOG_DEBUG, "Setting worksize to %"PRId64, (int64_t)kernelinfo->wsize);
 	if (clState->vwidth > 1)
 		applog(LOG_DEBUG, "Patched source to suit %d vectors", clState->vwidth);
@@ -1142,6 +1152,11 @@ bool opencl_load_kernel(struct cgpu_info * const cgpu, _clState * const clState,
 		kernelinfo->wsize = 256;
 	else
 #endif
+#ifdef USE_AURUM
+	if (malgo->algo == POW_AURUM)
+		kernelinfo->wsize = 256;
+	else
+#endif
 	if (strstr(name, "Tahiti"))
 		kernelinfo->wsize = 64;
 	else
@@ -1165,12 +1180,38 @@ bool opencl_load_kernel(struct cgpu_info * const cgpu, _clState * const clState,
 		}
 	}
 #endif
+#ifdef USE_AURUM
+	if (kernelinfo->interface == KL_AURUM)
+	{
+		if (!data->thread_concurrency)
+		{
+			unsigned int sixtyfours;
+
+			sixtyfours =  data->max_alloc / 131072 / 64 - 1;
+			data->thread_concurrency = sixtyfours * 64;
+			if (data->shaders && data->thread_concurrency > data->shaders) {
+				data->thread_concurrency -= data->thread_concurrency % data->shaders;
+				if (data->thread_concurrency > data->shaders * 5)
+					data->thread_concurrency = data->shaders * 5;
+			}
+			applog(LOG_DEBUG, "GPU %u: selecting thread concurrency of %lu", gpu,  (unsigned long)data->thread_concurrency);
+		}
+	}
+#endif
 
 	strcat(binaryfilename, name);
 	if (kernelinfo->goffset)
 		strcat(binaryfilename, "g");
 #ifdef USE_SCRYPT
 	if (kernelinfo->interface == KL_SCRYPT)
+	{
+		sprintf(numbuf, "lg%utc%u", data->lookup_gap, (unsigned int)data->thread_concurrency);
+		strcat(binaryfilename, numbuf);
+	}
+	else
+#endif
+#ifdef USE_AURUM
+	if (kernelinfo->interface == KL_AURUM)
 	{
 		sprintf(numbuf, "lg%utc%u", data->lookup_gap, (unsigned int)data->thread_concurrency);
 		strcat(binaryfilename, numbuf);
@@ -1292,6 +1333,45 @@ build:
 			}
 			// NOTE: fallthru
 #endif
+
+
+
+#ifdef USE_AURUM
+		case KL_AURUM:
+			if (!clState->padbufsize)
+			{
+				size_t ipt = (1024 / data->lookup_gap + (1024 % data->lookup_gap > 0));
+				size_t bufsize = 128 * ipt * data->thread_concurrency;
+
+				/* Use the max alloc value which has been rounded to a power of
+				 * 2 greater >= required amount earlier */
+				if (bufsize > data->max_alloc) {
+					applog(LOG_WARNING, "Maximum buffer memory device %d supports says %lu", gpu, (unsigned long)data->max_alloc);
+					applog(LOG_WARNING, "Your aurum settings come to %lu", (unsigned long)bufsize);
+				}
+				applog(LOG_DEBUG, "Creating aurum buffer sized %lu", (unsigned long)bufsize);
+				clState->padbufsize = bufsize;
+
+				/* This buffer is weird and might work to some degree even if
+				 * the create buffer call has apparently failed, so check if we
+				 * get anything back before we call it a failure. */
+				clState->padbuffer8 = NULL;
+				clState->padbuffer8 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, bufsize, NULL, &status);
+				if (status != CL_SUCCESS && !clState->padbuffer8) {
+					applog(LOG_ERR, "Error %d: clCreateBuffer (padbuffer8), decrease TC or increase LG", status);
+					return false;
+				}
+			}
+			// NOTE: fallthru
+#endif
+
+
+
+
+
+
+
+
 #ifdef USE_OPENCL_FULLHEADER
 		case KL_FULLHEADER:
 #endif

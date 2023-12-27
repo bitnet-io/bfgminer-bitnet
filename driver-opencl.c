@@ -309,6 +309,9 @@ void opencl_early_init()
 #ifdef USE_SCRYPT
 			.lookup_gap = 2,
 #endif
+#ifdef USE_AURUM
+			.lookup_gap = 2,
+#endif
 		};
 		gpus[i] = (struct cgpu_info){
 			.device_data = data,
@@ -374,6 +377,11 @@ _SET_INT_LIST(vector  , (v == 1 || v == 2 || v == 4), vwidth   )
 _SET_INT_LIST(worksize, (v >= 1 && v <= 9999)       , work_size)
 
 #ifdef USE_SCRYPT
+_SET_INT_LIST(shaders           , true, shaders)
+_SET_INT_LIST(lookup_gap        , true, lookup_gap)
+_SET_INT_LIST(thread_concurrency, true, thread_concurrency)
+#endif
+#ifdef USE_AURUM
 _SET_INT_LIST(shaders           , true, shaders)
 _SET_INT_LIST(lookup_gap        , true, lookup_gap)
 _SET_INT_LIST(thread_concurrency, true, thread_concurrency)
@@ -1269,6 +1277,38 @@ cl_int queue_scrypt_kernel(const struct opencl_kernel_info * const kinfo, _clSta
 }
 #endif
 
+
+#ifdef USE_AURUM
+static
+cl_int queue_aurum_kernel(const struct opencl_kernel_info * const kinfo, _clState * const clState, struct work * const work, __maybe_unused const cl_uint threads)
+{
+	unsigned char *midstate = work->midstate;
+	const cl_kernel * const kernel = &kinfo->kernel;
+	unsigned int num = 0;
+	cl_uint le_target;
+	cl_int status = 0;
+	
+	if (!kinfo->goffset)
+	{
+		cl_uint nonce_base = work->blk.nonce;
+		CL_SET_ARG(nonce_base);
+	}
+
+	le_target = *(cl_uint *)(work->target + 28);
+	clState->cldata = work->data;
+	status = clEnqueueWriteBuffer(clState->commandQueue, clState->CLbuffer0, true, 0, 80, clState->cldata, 0, NULL,NULL);
+
+	CL_SET_ARG(clState->CLbuffer0);
+	CL_SET_ARG(clState->outputBuffer);
+	CL_SET_ARG(clState->padbuffer8);
+	CL_SET_VARG(4, &midstate[0]);
+	CL_SET_VARG(4, &midstate[16]);
+	CL_SET_ARG(le_target);
+
+	return status;
+}
+#endif
+
 #ifdef USE_OPENCL_FULLHEADER
 static
 cl_int queue_fullheader_kernel(const struct opencl_kernel_info * const kinfo, _clState * const clState, struct work * const work, __maybe_unused const cl_uint threads)
@@ -1312,6 +1352,9 @@ struct opencl_kernel_interface kernel_interfaces[] = {
 #endif
 #ifdef USE_SCRYPT
 	{"scrypt",  queue_scrypt_kernel },
+#endif
+#ifdef USE_AURUM
+	{"aurum",  queue_aurum_kernel },
 #endif
 };
 
@@ -1781,6 +1824,13 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
 		buffersize = SCRYPT_BUFFERSIZE;
 	}
 #endif
+#ifdef USE_AURUM
+	if (malgo->algo == POW_AURUM)
+	{
+		found = AURUM_FOUND;
+		buffersize = AURUM_BUFFERSIZE;
+	}
+#endif
 	if (data->intensity != intensity_not_set)
 		data->oclthreads = malgo->opencl_intensity_to_oclthreads(data->intensity);
 
@@ -1923,6 +1973,11 @@ static const struct bfg_set_device_definition opencl_set_device_funcs_probe[] = 
 	{"lookup_gap", opencl_init_lookup_gap},
 	{"thread_concurrency", opencl_init_thread_concurrency},
 #endif
+#ifdef USE_AURUM
+	{"shaders", opencl_init_shaders},
+	{"lookup_gap", opencl_init_lookup_gap},
+	{"thread_concurrency", opencl_init_thread_concurrency},
+#endif
 	{NULL}
 };
 
@@ -1948,6 +2003,11 @@ static const struct bfg_set_device_definition opencl_set_device_funcs[] = {
 	{"shaders", opencl_cannot_set, "GPU shaders per card (scrypt only)"},
 	{"lookup_gap", opencl_cannot_set, "GPU lookup gap (scrypt only)"},
 	{"thread_concurrency", opencl_cannot_set, "GPU thread concurrency (scrypt only)"},
+#endif
+#ifdef USE_AURUM
+	{"shaders", opencl_cannot_set, "GPU shaders per card (aurum only)"},
+	{"lookup_gap", opencl_cannot_set, "GPU lookup gap (aurum only)"},
+	{"thread_concurrency", opencl_cannot_set, "GPU thread concurrency (aurum only)"},
 #endif
 	{NULL}
 };
